@@ -22,7 +22,7 @@ from flask_admin.helpers import (get_form_data, validate_form_on_submit,
                                  get_redirect_target, flash_errors)
 from flask_admin.tools import rec_getattr
 from flask_admin._backwards import ObsoleteAttr
-from flask_admin._compat import iteritems, OrderedDict, as_unicode, csv_encode
+from flask_admin._compat import (iteritems, itervalues, OrderedDict, as_unicode, csv_encode)
 from .helpers import prettify_name, get_mdict_item_or_list
 from .ajax import AjaxModelLoader
 from .fields import ListEditableFieldList
@@ -62,6 +62,26 @@ class ViewArgs(object):
         kwargs.setdefault('extra_args', dict(self.extra_args))
 
         return ViewArgs(**kwargs)
+
+
+class FilterGroup:
+    def __init__(self, label):
+        self.label = label
+        self.filters = []
+
+    def append(self, filter):
+        self.filters.append(filter)
+
+    def non_lazy(self):
+        filters = []
+        for item in self.filters:
+            copy = dict(item)
+            copy['operation'] = as_unicode(copy['operation'])
+            filters.append(copy)
+        return as_unicode(self.label), filters
+
+    def __iter__(self):
+        return iter(self.filters)
 
 
 class BaseModelView(BaseView, ActionsMixin):
@@ -713,10 +733,11 @@ class BaseModelView(BaseView, ActionsMixin):
             self._filter_args = {}
 
             for i, flt in enumerate(self._filters):
-                if flt.name not in self._filter_groups:
-                    self._filter_groups[flt.name] = []
+                key = as_unicode(flt.name)
+                if key not in self._filter_groups:
+                    self._filter_groups[key] = FilterGroup(flt.name)
 
-                self._filter_groups[flt.name].append({
+                self._filter_groups[key].append({
                     'index': i,
                     'arg': self.get_filter_arg(i, flt),
                     'operation': flt.operation(),
@@ -1016,14 +1037,8 @@ class BaseModelView(BaseView, ActionsMixin):
         if self._filter_groups:
             results = OrderedDict()
 
-            for key, value in iteritems(self._filter_groups):
-                items = []
-
-                for item in value:
-                    copy = dict(item)
-                    copy['operation'] = as_unicode(copy['operation'])
-                    items.append(copy)
-
+            for group in itervalues(self._filter_groups):
+                key, items = group.non_lazy()
                 results[key] = items
 
             return results
@@ -1418,7 +1433,7 @@ class BaseModelView(BaseView, ActionsMixin):
         """
         pass
 
-    def on_form_prefill (self, form, id):
+    def on_form_prefill(self, form, id):
         """
             Perform additional actions to pre-fill the edit form.
 
@@ -1926,7 +1941,7 @@ class BaseModelView(BaseView, ActionsMixin):
         form = self.delete_form()
 
         if self.validate_form(form):
-             # id is Required()
+            # id is Required()
             id = form.id.data
 
             model = self.get_one(id)
