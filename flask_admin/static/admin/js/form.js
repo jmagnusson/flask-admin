@@ -197,7 +197,7 @@
         map.addControl(drawControl);
         if (window.MAPBOX_SEARCH) {
           var circle = L.circleMarker([0, 0]);
-          var $autocompleteEl = $('<input style="position: absolute; z-index: 9999; display: block; margin: -35px 0 0 10px">');
+          var $autocompleteEl = $('<input style="position: absolute; z-index: 9999; display: block; margin: -42px 0 0 10px; width: 50%;">');
           var $form = $($el.get(0).form);
 
           $autocompleteEl.insertAfter($map);
